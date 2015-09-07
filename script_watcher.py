@@ -61,9 +61,8 @@ class WatchScriptOperator(bpy.types.Operator):
             s = (prefix % self.get_paths(filepath)) + f.read()
             exec(compile(s, filepath, 'exec'), self.get_globals())
         except IOError:
-            self.report({'ERROR'}, 'Could not open script file.')
+            print('Could not open script file.')
         except:
-            self.report({'ERROR'}, 'Error running script see console.')
             print("The was an error when running the script:\n", traceback.format_exc())
         else:
             f.close()
