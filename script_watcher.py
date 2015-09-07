@@ -44,7 +44,6 @@ class WatchScriptOperator(bpy.types.Operator):
                 dirs[:] = [] # No __init__ so we stop walking this dir.
         
         return paths or [filepath] # If we just have one (non __init__) file then that will be out path.
-        
     
     def get_globals(self):
         # Grab the current globals and override the key values.
@@ -58,8 +57,12 @@ class WatchScriptOperator(bpy.types.Operator):
         print('Reloading script:', filepath)
         try:
             f = open(filepath)
-            s = (prefix % self.get_paths(filepath)) + f.read()
-            exec(compile(s, filepath, 'exec'), self.get_globals())
+            # Make sure that the script is in the sys path.
+            for path in self.get_paths(filepath):
+                if path not in sys.path:
+                    sys.path.append(path)
+
+            exec(compile(f.read(), filepath, 'exec'), self.get_globals())
         except IOError:
             print('Could not open script file.')
         except:
