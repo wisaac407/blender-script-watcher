@@ -30,6 +30,22 @@ class WatchScriptOperator(bpy.types.Operator):
     _last_time = None
     filepath = bpy.props.StringProperty()
     
+    def get_paths(self, filepath):
+        """Find all the python paths surrounding the given filepath."""
+        
+        dirname = os.path.dirname(filepath)
+        
+        paths = []
+        
+        for root, dirs, files in os.walk(dirname, topdown=True):
+            if '__init__.py' in files:
+                paths.append(root)
+            else:
+                dirs[:] = [] # No __init__ so we stop walking this dir.
+        
+        return paths or [filepath] # If we just have one (non __init__) file then that will be out path.
+        
+    
     def get_globals(self):
         # Grab the current globals and override the key values.
         globs = globals()
@@ -42,7 +58,7 @@ class WatchScriptOperator(bpy.types.Operator):
         print('Reloading script:', filepath)
         try:
             f = open(filepath)
-            s = (prefix % [os.path.dirname(filepath)]) + f.read()
+            s = (prefix % self.get_paths(filepath)) + f.read()
             exec(compile(s, filepath, 'exec'), self.get_globals())
         except IOError:
             self.report({'ERROR'}, 'Could not open script file.')
