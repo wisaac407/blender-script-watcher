@@ -27,8 +27,8 @@ class WatchScriptOperator(bpy.types.Operator):
 
     _timer = None
     _running = False
-    _last_time = None
-    filepath = bpy.props.StringProperty()
+    _times = None
+    filepath = None
     
     def get_paths(self, filepath):
         """Find all the python paths surrounding the given filepath."""
@@ -36,14 +36,17 @@ class WatchScriptOperator(bpy.types.Operator):
         dirname = os.path.dirname(filepath)
         
         paths = []
+        filepaths = []
         
         for root, dirs, files in os.walk(dirname, topdown=True):
             if '__init__.py' in files:
                 paths.append(root)
+                for f in files:
+                    filepaths.append(os.path.join(root, f))
             else:
                 dirs[:] = [] # No __init__ so we stop walking this dir.
         
-        return paths or [filepath] # If we just have one (non __init__) file then that will be out path.
+        return paths, filepaths or [filepath] # If we just have one (non __init__) file then that will be the file we watch.
     
     def remove_cached_mods(self, paths):
         """Remove any cached modules that where imported in the last excecution."""
@@ -64,7 +67,7 @@ class WatchScriptOperator(bpy.types.Operator):
         print('Reloading script:', filepath)
         try:
             f = open(filepath)
-            paths = self.get_paths(filepath)
+            paths, files = self.get_paths(filepath)
             # Make sure that the script is in the sys path.
             for path in paths:
                 if path not in sys.path:
@@ -84,11 +87,12 @@ class WatchScriptOperator(bpy.types.Operator):
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
-            filepath = bpy.path.abspath(context.scene.sw_filepath)
-            cur_time = os.stat(filepath).st_mtime
-            if cur_time != self._last_time:
-                self._last_time = cur_time
-                self.reload_script(filepath)
+            for path in self._times:
+                cur_time = os.stat(path).st_mtime
+                
+                if cur_time != self._times[path]:
+                    self._times[path] = cur_time
+                    self.reload_script(self.filepath)
 
         return {'PASS_THROUGH'}
 
@@ -96,6 +100,13 @@ class WatchScriptOperator(bpy.types.Operator):
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
+        
+        self.filepath = bpy.path.abspath(context.scene.sw_filepath)
+        
+        files, dirs = self.get_paths(self.filepath)
+        self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
+        self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
+        
         context.scene.sw_running = True
         return {'RUNNING_MODAL'}
 
