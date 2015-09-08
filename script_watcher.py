@@ -45,6 +45,13 @@ class WatchScriptOperator(bpy.types.Operator):
         
         return paths or [filepath] # If we just have one (non __init__) file then that will be out path.
     
+    def remove_cached_mods(self, paths):
+        """Remove any cached modules that where imported in the last excecution."""
+        for name, mod in sys.modules.items():
+            # If the module is not internal and it came from a script path then it should be reloaded.
+            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
+                del sys.modules[name]
+    
     def get_globals(self):
         # Grab the current globals and override the key values.
         globs = globals()
@@ -57,11 +64,13 @@ class WatchScriptOperator(bpy.types.Operator):
         print('Reloading script:', filepath)
         try:
             f = open(filepath)
+            paths = self.get_paths(filepath)
             # Make sure that the script is in the sys path.
-            for path in self.get_paths(filepath):
+            for path in paths:
                 if path not in sys.path:
                     sys.path.append(path)
 
+            self.remove_cached_mods(paths)
             exec(compile(f.read(), filepath, 'exec'), self.get_globals())
         except IOError:
             print('Could not open script file.')
