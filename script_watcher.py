@@ -47,7 +47,7 @@ class WatchScriptOperator(bpy.types.Operator):
     
     def remove_cached_mods(self, paths):
         """Remove any cached modules that where imported in the last excecution."""
-        for name, mod in sys.modules.items():
+        for name, mod in list(sys.modules.items()):
             # If the module is not internal and it came from a script path then it should be reloaded.
             if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
                 del sys.modules[name]
