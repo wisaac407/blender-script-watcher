@@ -78,7 +78,7 @@ class WatchScriptOperator(bpy.types.Operator):
         except IOError:
             print('Could not open script file.')
         except:
-            print("The was an error when running the script:\n", traceback.format_exc())
+            print("There was an error when running the script:\n", traceback.format_exc())
         else:
             f.close()
 
