@@ -14,11 +14,6 @@ import os, sys
 import traceback
 import bpy
 
-prefix = """
-import sys
-sys.path.extend(%s)
-"""
-
 # Define the script watching operator.
 class WatchScriptOperator(bpy.types.Operator):
     """Polls the script being watched. If any changes occur re-runs script."""
