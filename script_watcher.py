@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Script Watcher",
     "author": "Isaac Weaver",
-    "version": (0, 1),
+    "version": (0, 2),
     "blender": (2, 75, 0),
     "location": "Properties > Scene > Script Watcher",
     "description": "Reloads an external script on edits.",
