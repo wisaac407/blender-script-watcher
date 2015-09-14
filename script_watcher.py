@@ -57,7 +57,7 @@ class WatchScriptOperator(bpy.types.Operator):
     
     def get_globals(self):
         # Grab globals from the main module and override the key values.
-        globs = sys.modules['__main__'].__dict__
+        globs = sys.modules['__main__'].__dict__.copy()
         globs['__file__'] = self.filepath
         
         return globs
