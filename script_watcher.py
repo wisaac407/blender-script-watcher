@@ -170,7 +170,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         col = layout.column()
         col.prop(context.scene, 'sw_filepath', text='')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
-        col.active = not running
+        col.enabled = not running
         if running:
             layout.operator('wm.sw_watch_end', icon='CANCEL')
 
