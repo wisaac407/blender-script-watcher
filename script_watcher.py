@@ -28,6 +28,7 @@ bl_info = {
     "description": "Reloads an external script on edits.",
     "warning": "Still in beta stage.",
     "wiki_url": "",
+    "tracker_url": "https://github.com/wisaac407/blender-script-watcher/issues/new",
     "category": "Development",
 }
 
