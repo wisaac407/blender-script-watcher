@@ -22,7 +22,7 @@ Author: Isaac Weaver <wisaac407@gmail.com>
 bl_info = {
     "name": "Script Watcher",
     "author": "Isaac Weaver",
-    "version": (0, 2),
+    "version": (0, 3),
     "blender": (2, 75, 0),
     "location": "Properties > Scene > Script Watcher",
     "description": "Reloads an external script on edits.",
