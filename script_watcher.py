@@ -115,6 +115,8 @@ class WatchScriptOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
+        if context.scene.sw_running:
+            return {'CANCELLED'}
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
