@@ -46,6 +46,8 @@ class WatchScriptOperator(bpy.types.Operator):
     _times = None
     filepath = None
     
+    sys_paths = None # List of sys paths for current script.
+    
     def get_paths(self, filepath):
         """Find all the python paths surrounding the given filepath."""
         
@@ -85,6 +87,7 @@ class WatchScriptOperator(bpy.types.Operator):
             paths, files = self.get_paths(filepath)
             # Make sure that the script is in the sys path.
             for path in paths:
+                self.sys_paths.add(path) # Keep track of all our sys paths.                
                 if path not in sys.path:
                     sys.path.append(path)
 
@@ -122,12 +125,19 @@ class WatchScriptOperator(bpy.types.Operator):
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
         self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
         
+        self.sys_paths = set()
+        
         context.scene.sw_running = True
         return {'RUNNING_MODAL'}
 
     def cancel(self, context):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
+        
+        # Remove all the paths form the watched script.
+        for path in self.sys_paths:
+            sys.path.remove(path)
+
         context.scene.sw_running = False
 
 
