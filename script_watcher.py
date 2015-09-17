@@ -27,7 +27,7 @@ bl_info = {
     "location": "Properties > Scene > Script Watcher",
     "description": "Reloads an external script on edits.",
     "warning": "Still in beta stage.",
-    "wiki_url": "",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Development/Script_Watcher",
     "tracker_url": "https://github.com/wisaac407/blender-script-watcher/issues/new",
     "category": "Development",
 }
