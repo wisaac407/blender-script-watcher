@@ -169,7 +169,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         running = context.scene.sw_settings.running
 
         col = layout.column()
-        col.prop(context.scene.sw_settings, 'filepath', text='Script')
+        col.prop(context.scene.sw_settings, 'filepath')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
         if running:
@@ -178,7 +178,11 @@ class ScriptWatcherPanel(bpy.types.Panel):
 
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
-    filepath = bpy.props.StringProperty(subtype='FILE_PATH')
+    filepath = bpy.props.StringProperty(
+        name        = 'Script',
+        description = 'Script file to watch for changes.',
+        subtype     = 'FILE_PATH'
+    )
     running = bpy.props.BoolProperty(default=False)
 
 
