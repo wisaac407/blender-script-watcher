@@ -178,12 +178,13 @@ class ScriptWatcherPanel(bpy.types.Panel):
 
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
+    running = bpy.props.BoolProperty(default=False)
+    
     filepath = bpy.props.StringProperty(
         name        = 'Script',
         description = 'Script file to watch for changes.',
         subtype     = 'FILE_PATH'
     )
-    running = bpy.props.BoolProperty(default=False)
 
 
 def register():
