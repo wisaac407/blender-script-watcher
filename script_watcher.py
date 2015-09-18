@@ -102,7 +102,7 @@ class WatchScriptOperator(bpy.types.Operator):
             f.close()
 
     def modal(self, context, event):
-        if not context.scene.sw_running:
+        if not context.scene.sw_settings.running:
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
@@ -116,13 +116,13 @@ class WatchScriptOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        if context.scene.sw_running:
+        if context.scene.sw_settings.running:
             return {'CANCELLED'}
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
         
-        self.filepath = bpy.path.abspath(context.scene.sw_filepath)
+        self.filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
         
         files, dirs = self.get_paths(self.filepath)
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
@@ -130,7 +130,7 @@ class WatchScriptOperator(bpy.types.Operator):
         
         self.sys_paths = set()
         
-        context.scene.sw_running = True
+        context.scene.sw_settings.running = True
         return {'RUNNING_MODAL'}
 
     def cancel(self, context):
@@ -141,7 +141,7 @@ class WatchScriptOperator(bpy.types.Operator):
         for path in self.sys_paths:
             sys.path.remove(path)
 
-        context.scene.sw_running = False
+        context.scene.sw_settings.running = False
 
 
 class CancelScriptWatcher(bpy.types.Operator):
@@ -151,7 +151,7 @@ class CancelScriptWatcher(bpy.types.Operator):
 
     def execute(self, context):
         # Setting the running flag to false will cause the modal to cancel itself.
-        context.scene.sw_running = False
+        context.scene.sw_settings.running = False
         return {'FINISHED'}
 
 
@@ -166,23 +166,30 @@ class ScriptWatcherPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        running = context.scene.sw_running
+        running = context.scene.sw_settings.running
 
         col = layout.column()
-        col.prop(context.scene, 'sw_filepath', text='Script')
+        col.prop(context.scene.sw_settings, 'filepath', text='Script')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
         if running:
             layout.operator('wm.sw_watch_end', icon='CANCEL')
 
 
+class ScriptWatcherSettings(bpy.types.PropertyGroup):
+    """All the script watcher settings."""
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH')
+    running = bpy.props.BoolProperty(default=False)
+
+
 def register():
     bpy.utils.register_class(WatchScriptOperator)
     bpy.utils.register_class(ScriptWatcherPanel)
     bpy.utils.register_class(CancelScriptWatcher)
-
-    bpy.types.Scene.sw_filepath = bpy.props.StringProperty(subtype='FILE_PATH')
-    bpy.types.Scene.sw_running = bpy.props.BoolProperty(default=False)
+    bpy.utils.register_class(ScriptWatcherSettings)
+    
+    bpy.types.Scene.sw_settings = \
+        bpy.props.PointerProperty(type=ScriptWatcherSettings)
 
 
 def unregister():
@@ -190,8 +197,7 @@ def unregister():
     bpy.utils.unregister_class(ScriptWatcherPanel)
     bpy.utils.unregister_class(CancelScriptWatcher)
 
-    del bpy.types.Scene.sw_filepath
-    del bpy.types.Scene.sw_running
+    del bpy.types.Scene.sw_settings
 
 
 if __name__ == "__main__":
