@@ -33,8 +33,14 @@ bl_info = {
 }
 
 import os, sys
+import io
 import traceback
 import bpy
+
+def add_scrollback(ctx, text, text_type):
+    for l in text.split("\n"):
+        bpy.ops.console.scrollback_append(ctx, text=l.replace("\t", "    "),
+                                          type=text_type)
 
 # Define the script watching operator.
 class WatchScriptOperator(bpy.types.Operator):
@@ -97,9 +103,47 @@ class WatchScriptOperator(bpy.types.Operator):
         except IOError:
             print('Could not open script file.')
         except:
-            print("There was an error when running the script:\n", traceback.format_exc())
+            sys.stderr.write("There was an error when running the script:\n" + traceback.format_exc())
         else:
             f.close()
+            
+    def reload_with_py(self, context, filepath):
+        """Reload this script while printing the output to blenders python console."""
+        
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        
+        sys.stdout = stdout
+        sys.stderr = stderr
+        
+        self.reload_script(filepath)
+        
+        stdout.seek(0)
+        stderr.seek(0)
+        
+        output = stdout.read()
+        output_err = stderr.read()
+        
+        # Print the output to the consoles.
+        for area in context.screen.areas:
+            if area.spaces.active.type == "CONSOLE":
+                ctx = {"area": area}
+                
+                # Actually print the output.
+                if output:
+                    add_scrollback(ctx, output, 'OUTPUT')
+                    
+                if output_err:
+                    add_scrollback(ctx, output_err, 'ERROR')
+        
+        # Cleanup
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        
+        # Lastly, feed the output to the actual sys.stdout and sys.stderr.
+        sys.stdout.write(output)
+        sys.stderr.write(output_err)
+        
 
     def modal(self, context, event):
         if not context.scene.sw_settings.running:
@@ -111,7 +155,10 @@ class WatchScriptOperator(bpy.types.Operator):
                 
                 if cur_time != self._times[path]:
                     self._times[path] = cur_time
-                    self.reload_script(self.filepath)
+                    if self.use_py_console:
+                        self.reload_with_py(context, self.filepath)
+                    else:
+                        self.reload_script(self.filepath)
 
         return {'PASS_THROUGH'}
 
@@ -123,6 +170,7 @@ class WatchScriptOperator(bpy.types.Operator):
         wm.modal_handler_add(self)
         
         self.filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
+        self.use_py_console = context.scene.sw_settings.use_py_console
         
         files, dirs = self.get_paths(self.filepath)
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
@@ -170,6 +218,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
 
         col = layout.column()
         col.prop(context.scene.sw_settings, 'filepath')
+        col.prop(context.scene.sw_settings, 'use_py_console')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
         if running:
@@ -184,6 +233,12 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
         name        = 'Script',
         description = 'Script file to watch for changes.',
         subtype     = 'FILE_PATH'
+    )
+    
+    use_py_console = bpy.props.BoolProperty(
+        name        = 'Use py console',
+        description = 'Use blenders built-in python console for program output (i.e. print statments and error messages)',
+        default     = False
     )
 
 
