@@ -110,14 +110,17 @@ class WatchScriptOperator(bpy.types.Operator):
     def reload_with_py(self, context, filepath):
         """Reload this script while printing the output to blenders python console."""
         
+        # Setup stdout and stderr.
         stdout = io.StringIO()
         stderr = io.StringIO()
         
         sys.stdout = stdout
         sys.stderr = stderr
         
+        # Run the script.
         self.reload_script(filepath)
         
+        # Store the output in variables.
         stdout.seek(0)
         stderr.seek(0)
         
