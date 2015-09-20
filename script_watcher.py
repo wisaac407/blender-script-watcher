@@ -39,9 +39,30 @@ import types
 import bpy
 
 def add_scrollback(ctx, text, text_type):
-    for l in text.split("\n"):
-        bpy.ops.console.scrollback_append(ctx, text=l.replace("\t", "    "),
+    for line in text:
+        bpy.ops.console.scrollback_append(ctx, text=line.replace('\t', '    '), 
                                           type=text_type)
+
+
+class SplitIO(io.StringIO):
+    """Feed the input stream into another stream."""
+    PREFIX = '[Script Watcher]: '
+
+    def __init__(self, stream):
+        io.StringIO.__init__(self)
+        
+        self.stream = stream
+        
+    def write(self, s):
+        # Make sure we prefix our string before we do anything else with it.
+        if s.strip() != '':
+            s = self.PREFIX + s
+        
+        # Make sure to call the super classes write method.
+        io.StringIO.write(self, s)
+        
+        # When we are written to, we also write to the secondary stream.
+        self.stream.write(s)
 
 # Define the script watching operator.
 class WatchScriptOperator(bpy.types.Operator):
@@ -88,7 +109,7 @@ class WatchScriptOperator(bpy.types.Operator):
         
         return mod, dir
 
-    def reload_script(self):
+    def _reload_script_module(self):
         print('Reloading script:', self.filepath)
         try:
             f = open(self.filepath)
@@ -115,47 +136,46 @@ class WatchScriptOperator(bpy.types.Operator):
         else:
             f.close()
             
-    def reload_with_py(self, context):
+    def reload_script(self, context):
         """Reload this script while printing the output to blenders python console."""
         
+        prefix = '[Script Watcher]: '
+        
         # Setup stdout and stderr.
-        stdout = io.StringIO()
-        stderr = io.StringIO()
+        stdout = SplitIO(sys.stdout)
+        stderr = SplitIO(sys.stderr)
         
         sys.stdout = stdout
         sys.stderr = stderr
         
         # Run the script.
-        self.reload_script()
+        self._reload_script_module()
         
         # Store the output in variables.
         stdout.seek(0)
         stderr.seek(0)
         
-        output = stdout.read()
-        output_err = stderr.read()
+        # Don't use readlines because that leaves trailing new lines.
+        output = stdout.read().split('\n')
+        output_err = stderr.read().split('\n')
         
-        # Print the output to the consoles.
-        for area in context.screen.areas:
-            if area.spaces.active.type == "CONSOLE":
-                ctx = context.copy()
-                ctx.update({"area": area})
-                
-                # Actually print the output.
-                if output:
-                    add_scrollback(ctx, output, 'OUTPUT')
+        if self.use_py_console:
+            # Print the output to the consoles.
+            for area in context.screen.areas:
+                if area.spaces.active.type == "CONSOLE":
+                    ctx = context.copy()
+                    ctx.update({"area": area})
                     
-                if output_err:
-                    add_scrollback(ctx, output_err, 'ERROR')
+                    # Actually print the output.
+                    if output:
+                        add_scrollback(ctx, output, 'OUTPUT')
+                        
+                    if output_err:
+                        add_scrollback(ctx, output_err, 'ERROR')
         
         # Cleanup
         sys.stdout = sys.__stdout__
-        sys.stderr = sys.__stderr__
-        
-        # Lastly, feed the output to the actual sys.stdout and sys.stderr.
-        sys.stdout.write(output)
-        sys.stderr.write(output_err)
-        
+        sys.stderr = sys.__stderr__        
 
     def modal(self, context, event):
         if not context.scene.sw_settings.running:
@@ -167,11 +187,7 @@ class WatchScriptOperator(bpy.types.Operator):
                 
                 if cur_time != self._times[path]:
                     self._times[path] = cur_time
-                    
-                    if self.use_py_console:
-                        self.reload_with_py(context)
-                    else:
-                        self.reload_script()
+                    self.reload_script(context)
 
         return {'PASS_THROUGH'}
 
