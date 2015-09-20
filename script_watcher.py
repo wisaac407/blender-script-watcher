@@ -188,8 +188,6 @@ class WatchScriptOperator(bpy.types.Operator):
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
         self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
         
-        self.sys_paths = set()
-        
         context.scene.sw_settings.running = True
         return {'RUNNING_MODAL'}
 
