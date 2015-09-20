@@ -54,10 +54,10 @@ class WatchScriptOperator(bpy.types.Operator):
     _times = None
     filepath = None
     
-    def get_paths(self, filepath):
+    def get_paths(self):
         """Find all the python paths surrounding the given filepath."""
         
-        dirname = os.path.dirname(filepath)
+        dirname = os.path.dirname(self.filepath)
         
         paths = []
         filepaths = []
@@ -70,11 +70,11 @@ class WatchScriptOperator(bpy.types.Operator):
             else:
                 dirs[:] = [] # No __init__ so we stop walking this dir.
         
-        return paths, filepaths or [filepath] # If we just have one (non __init__) file then that will be the file we watch.
+        return paths, filepaths or [self.filepath] # If we just have one (non __init__) file then that will be the file we watch.
 
-    def get_mod_name(self, filepath):
+    def get_mod_name(self):
         """Return the module name and the root path of the givin python file path."""
-        dir, mod = os.path.split(filepath)
+        dir, mod = os.path.split(self.filepath)
         
         # Module is a package.
         if mod == '__init__.py':
@@ -87,18 +87,18 @@ class WatchScriptOperator(bpy.types.Operator):
         
         return mod, dir
 
-    def reload_script(self, filepath):
-        print('Reloading script:', filepath)
+    def reload_script(self):
+        print('Reloading script:', self.filepath)
         try:
-            f = open(filepath)
-            paths, files = self.get_paths(filepath)
+            f = open(self.filepath)
+            paths, files = self.get_paths()
             
             # Get the module name and the root module path.
-            mod_name, mod_root = self.get_mod_name(filepath)
+            mod_name, mod_root = self.get_mod_name()
             
             # Create the module and setup the basic properties.
             mod = types.ModuleType('__main__')
-            mod.__file__ = filepath
+            mod.__file__ = self.filepath
             mod.__path__ = paths
             mod.__package__ = mod_name
             
@@ -114,7 +114,7 @@ class WatchScriptOperator(bpy.types.Operator):
         else:
             f.close()
             
-    def reload_with_py(self, context, filepath):
+    def reload_with_py(self, context):
         """Reload this script while printing the output to blenders python console."""
         
         # Setup stdout and stderr.
@@ -125,7 +125,7 @@ class WatchScriptOperator(bpy.types.Operator):
         sys.stderr = stderr
         
         # Run the script.
-        self.reload_script(filepath)
+        self.reload_script()
         
         # Store the output in variables.
         stdout.seek(0)
@@ -168,9 +168,9 @@ class WatchScriptOperator(bpy.types.Operator):
                     self._times[path] = cur_time
                     
                     if self.use_py_console:
-                        self.reload_with_py(context, self.filepath)
+                        self.reload_with_py(context)
                     else:
-                        self.reload_script(self.filepath)
+                        self.reload_script()
 
         return {'PASS_THROUGH'}
 
