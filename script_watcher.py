@@ -107,7 +107,7 @@ class WatchScriptOperator(bpy.types.Operator):
             sys.modules[mod_name] = mod
             
             # Fianally, execute the module.
-            exec(compile(f.read(), filepath, 'exec'), mod.__dict__)
+            exec(compile(f.read(), self.filepath, 'exec'), mod.__dict__)
         except IOError:
             print('Could not open script file.')
         except:
@@ -185,7 +185,7 @@ class WatchScriptOperator(bpy.types.Operator):
         self.filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
         self.use_py_console = context.scene.sw_settings.use_py_console
         
-        dirs, files = self.get_paths(self.filepath)
+        dirs, files = self.get_paths()
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
         self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
         
