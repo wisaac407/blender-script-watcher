@@ -143,8 +143,6 @@ class WatchScriptOperator(bpy.types.Operator):
     def reload_script(self, context):
         """Reload this script while printing the output to blenders python console."""
         
-        prefix = '[Script Watcher]: '
-        
         # Setup stdout and stderr.
         stdout = SplitIO(sys.stdout)
         stderr = SplitIO(sys.stderr)
