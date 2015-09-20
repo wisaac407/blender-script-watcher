@@ -47,6 +47,8 @@ def add_scrollback(ctx, text, text_type):
 class SplitIO(io.StringIO):
     """Feed the input stream into another stream."""
     PREFIX = '[Script Watcher]: '
+    
+    _can_prefix = True
 
     def __init__(self, stream):
         io.StringIO.__init__(self)
@@ -55,8 +57,10 @@ class SplitIO(io.StringIO):
         
     def write(self, s):
         # Make sure we prefix our string before we do anything else with it.
-        if s.strip() != '':
+        if self._can_prefix:
             s = self.PREFIX + s
+        # only add the prefix if the last stream ended with a newline.
+        self._can_prefix = s.endswith('\n')
         
         # Make sure to call the super classes write method.
         io.StringIO.write(self, s)
