@@ -35,6 +35,7 @@ bl_info = {
 import os, sys
 import io
 import traceback
+import types
 import bpy
 
 def add_scrollback(ctx, text, text_type):
@@ -87,19 +88,41 @@ class WatchScriptOperator(bpy.types.Operator):
         
         return globs
 
+    def get_mod_name(self, filepath):
+        """Return the module name and the root path of the givin python file path."""
+        dir, mod = os.path.split(filepath)
+        
+        # Module is a package.
+        if mod == '__init__.py':
+            mod = os.path.basename(dir)
+            dir = os.path.dirname(dir)
+        
+        # Module is a single file.
+        else:
+            mod = os.path.splitext(mod)[0]
+        
+        return mod, dir
+
     def reload_script(self, filepath):
         print('Reloading script:', filepath)
         try:
             f = open(filepath)
             paths, files = self.get_paths(filepath)
-            # Make sure that the script is in the sys path.
-            for path in paths:
-                self.sys_paths.add(path) # Keep track of all our sys paths.                
-                if path not in sys.path:
-                    sys.path.append(path)
-
-            self.remove_cached_mods(paths)
-            exec(compile(f.read(), filepath, 'exec'), self.get_globals())
+            
+            # Get the module name and the root module path.
+            mod_name, mod_root = self.get_mod_name(filepath)
+            
+            # Create the module and setup the basic properties.
+            mod = types.ModuleType('__main__')
+            mod.__file__ = filepath
+            mod.__path__ = paths
+            mod.__package__ = mod_name
+            
+            # Add the module to the system module cache.
+            sys.modules[mod_name] = mod
+            
+            # Fianally, execute the module.
+            exec(compile(f.read(), filepath, 'exec'), mod.__dict__)
         except IOError:
             print('Could not open script file.')
         except:
