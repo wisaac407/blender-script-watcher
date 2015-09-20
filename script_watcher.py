@@ -54,8 +54,6 @@ class WatchScriptOperator(bpy.types.Operator):
     _times = None
     filepath = None
     
-    sys_paths = None # List of sys paths for current script.
-    
     def get_paths(self, filepath):
         """Find all the python paths surrounding the given filepath."""
         
@@ -73,20 +71,6 @@ class WatchScriptOperator(bpy.types.Operator):
                 dirs[:] = [] # No __init__ so we stop walking this dir.
         
         return paths, filepaths or [filepath] # If we just have one (non __init__) file then that will be the file we watch.
-    
-    def remove_cached_mods(self, paths):
-        """Remove any cached modules that where imported in the last excecution."""
-        for name, mod in list(sys.modules.items()):
-            # If the module is not internal and it came from a script path then it should be reloaded.
-            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
-                del sys.modules[name]
-    
-    def get_globals(self):
-        # Grab globals from the main module and override the key values.
-        globs = sys.modules['__main__'].__dict__.copy()
-        globs['__file__'] = self.filepath
-        
-        return globs
 
     def get_mod_name(self, filepath):
         """Return the module name and the root path of the givin python file path."""
@@ -212,10 +196,6 @@ class WatchScriptOperator(bpy.types.Operator):
     def cancel(self, context):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
-        
-        # Remove all the paths form the watched script.
-        for path in self.sys_paths:
-            sys.path.remove(path)
 
         context.scene.sw_settings.running = False
 
