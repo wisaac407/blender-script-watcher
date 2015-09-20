@@ -70,7 +70,8 @@ class WatchScriptOperator(bpy.types.Operator):
             else:
                 dirs[:] = [] # No __init__ so we stop walking this dir.
         
-        return paths, filepaths or [self.filepath] # If we just have one (non __init__) file then that will be the file we watch.
+        # If we just have one (non __init__) file then return just that file.
+        return paths, filepaths or [self.filepath]
 
     def get_mod_name(self):
         """Return the module name and the root path of the givin python file path."""
