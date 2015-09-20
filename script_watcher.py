@@ -213,6 +213,13 @@ class WatchScriptOperator(bpy.types.Operator):
     def cancel(self, context):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
+        
+        paths, files = self.get_paths()
+        
+        # Remove all the modules from the system cache.
+        for mod_name, mod in list(sys.modules.items()):
+            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
+                del sys.modules[mod_name]
 
         context.scene.sw_settings.running = False
 
