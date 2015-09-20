@@ -130,7 +130,8 @@ class WatchScriptOperator(bpy.types.Operator):
         # Print the output to the consoles.
         for area in context.screen.areas:
             if area.spaces.active.type == "CONSOLE":
-                ctx = {"area": area}
+                ctx = context.copy()
+                ctx.update({"area": area})
                 
                 # Actually print the output.
                 if output:
@@ -158,6 +159,7 @@ class WatchScriptOperator(bpy.types.Operator):
                 
                 if cur_time != self._times[path]:
                     self._times[path] = cur_time
+                    
                     if self.use_py_console:
                         self.reload_with_py(context, self.filepath)
                     else:
