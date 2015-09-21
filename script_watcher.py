@@ -164,7 +164,7 @@ class WatchScriptOperator(bpy.types.Operator):
         if self.use_py_console:
             # Print the output to the consoles.
             for area in context.screen.areas:
-                if area.spaces.active.type == "CONSOLE":
+                if area.type == "CONSOLE":
                     ctx = context.copy()
                     ctx.update({"area": area})
                     
