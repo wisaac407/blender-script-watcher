@@ -70,7 +70,7 @@ class SplitIO(io.StringIO):
 
 # Define the script watching operator.
 class WatchScriptOperator(bpy.types.Operator):
-    """Polls the script being watched. If any changes occur re-runs script."""
+    """Watches the script for changes, reloads the script if any changes occur."""
     bl_idname = "wm.sw_watch_start"
     bl_label = "Watch Script"
 
@@ -240,7 +240,7 @@ class WatchScriptOperator(bpy.types.Operator):
 
 
 class CancelScriptWatcher(bpy.types.Operator):
-    """Sets a flag which tells the modal to cancel itself."""
+    """Stop watching the current script."""
     bl_idname = "wm.sw_watch_end"
     bl_label = "Stop Watching"
 
@@ -251,7 +251,7 @@ class CancelScriptWatcher(bpy.types.Operator):
 
 
 class ReloadScriptWatcher(bpy.types.Operator):
-    """Reloads the script."""
+    """Reload the current script."""
     bl_idname = "wm.sw_reload"
     bl_label = "Reload Script"
 
@@ -298,7 +298,7 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
     
     use_py_console = bpy.props.BoolProperty(
         name        = 'Use py console',
-        description = 'Use blenders built-in python console for program output (i.e. print statments and error messages)',
+        description = 'Use blenders built-in python console for program output (e.g. print statments and error messages)',
         default     = False
     )
 
