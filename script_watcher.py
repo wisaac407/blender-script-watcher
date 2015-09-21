@@ -153,7 +153,7 @@ class WatchScriptOperator(bpy.types.Operator):
         # Run the script.
         self._reload_script_module()
         
-        # Store the output in variables.
+        # Go back to the begining so we can read the streams.
         stdout.seek(0)
         stderr.seek(0)
         
