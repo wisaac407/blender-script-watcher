@@ -197,6 +197,7 @@ class WatchScriptOperator(bpy.types.Operator):
         if context.scene.sw_settings.running:
             return {'CANCELLED'}
         
+        # Grab the settings and store them as local variables.
         self.filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
         self.use_py_console = context.scene.sw_settings.use_py_console
         
@@ -205,6 +206,7 @@ class WatchScriptOperator(bpy.types.Operator):
             self.report({'ERROR'}, 'Unable to open script.')
             return {'CANCELLED'}
         
+        # Setup the times dict to keep track of when all the files where last edited.
         dirs, files = self.get_paths()
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
         self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
