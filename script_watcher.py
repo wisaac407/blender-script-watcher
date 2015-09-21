@@ -196,16 +196,23 @@ class WatchScriptOperator(bpy.types.Operator):
     def execute(self, context):
         if context.scene.sw_settings.running:
             return {'CANCELLED'}
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(0.1, context.window)
-        wm.modal_handler_add(self)
         
         self.filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
         self.use_py_console = context.scene.sw_settings.use_py_console
         
+        # If it's not a file, doesn't exist or permistion is denied we don't preceed.
+        if not os.path.isfile(self.filepath):
+            self.report({'ERROR'}, 'Unable to open script.')
+            return {'CANCELLED'}
+        
         dirs, files = self.get_paths()
         self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
         self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
+        
+        # Setup the event timer.
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, context.window)
+        wm.modal_handler_add(self)
         
         context.scene.sw_settings.running = True
         return {'RUNNING_MODAL'}
