@@ -288,6 +288,7 @@ def unregister():
     bpy.utils.unregister_class(WatchScriptOperator)
     bpy.utils.unregister_class(ScriptWatcherPanel)
     bpy.utils.unregister_class(CancelScriptWatcher)
+    bpy.utils.unregister_class(ScriptWatcherSettings)
 
     del bpy.types.Scene.sw_settings
 
