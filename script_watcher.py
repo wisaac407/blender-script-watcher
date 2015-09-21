@@ -183,6 +183,12 @@ class WatchScriptOperator(bpy.types.Operator):
         if not context.scene.sw_settings.running:
             self.cancel(context)
             return {'CANCELLED'}
+
+        if context.scene.sw_settings.reload:
+            context.scene.sw_settings.reload = False
+            self.reload_script(context)
+            return {'PASS_THROUGH'}
+
         if event.type == 'TIMER':
             for path in self._times:
                 cur_time = os.stat(path).st_mtime
@@ -244,6 +250,17 @@ class CancelScriptWatcher(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class ReloadScriptWatcher(bpy.types.Operator):
+    """Reloads the script."""
+    bl_idname = "wm.sw_reload"
+    bl_label = "Reload Script"
+
+    def execute(self, context):
+        # Setting the reload flag to true will cause the modal to cancel itself.
+        context.scene.sw_settings.reload = True
+        return {'FINISHED'}
+
+
 # Create the UI for the operator. NEEDS FINISHING!!
 class ScriptWatcherPanel(bpy.types.Panel):
     """UI for the script watcher."""
@@ -263,12 +280,15 @@ class ScriptWatcherPanel(bpy.types.Panel):
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
         if running:
-            layout.operator('wm.sw_watch_end', icon='CANCEL')
+            row = layout.row(align=True)
+            row.operator('wm.sw_watch_end', icon='CANCEL')
+            row.operator('wm.sw_reload', icon='FILE_REFRESH')
 
 
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
     running = bpy.props.BoolProperty(default=False)
+    reload = bpy.props.BoolProperty(default=False)
     
     filepath = bpy.props.StringProperty(
         name        = 'Script',
@@ -287,6 +307,7 @@ def register():
     bpy.utils.register_class(WatchScriptOperator)
     bpy.utils.register_class(ScriptWatcherPanel)
     bpy.utils.register_class(CancelScriptWatcher)
+    bpy.utils.register_class(ReloadScriptWatcher)
     bpy.utils.register_class(ScriptWatcherSettings)
     
     bpy.types.Scene.sw_settings = \
@@ -297,6 +318,7 @@ def unregister():
     bpy.utils.unregister_class(WatchScriptOperator)
     bpy.utils.unregister_class(ScriptWatcherPanel)
     bpy.utils.unregister_class(CancelScriptWatcher)
+    bpy.utils.unregister_class(ReloadScriptWatcher)
     bpy.utils.unregister_class(ScriptWatcherSettings)
 
     del bpy.types.Scene.sw_settings
