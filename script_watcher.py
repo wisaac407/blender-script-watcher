@@ -112,9 +112,17 @@ class WatchScriptOperator(bpy.types.Operator):
             mod = os.path.splitext(mod)[0]
         
         return mod, dir
+    
+    def remove_cached_mods(self):
+        """Remove all the script modules from the system cache."""
+        paths, files = self.get_paths()
+        for mod_name, mod in list(sys.modules.items()):
+            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
+                del sys.modules[mod_name]
 
     def _reload_script_module(self):
         print('Reloading script:', self.filepath)
+        self.remove_cached_mods()
         try:
             f = open(self.filepath)
             paths, files = self.get_paths()
@@ -229,12 +237,7 @@ class WatchScriptOperator(bpy.types.Operator):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
         
-        paths, files = self.get_paths()
-        
-        # Remove all the modules from the system cache.
-        for mod_name, mod in list(sys.modules.items()):
-            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
-                del sys.modules[mod_name]
+        self.remove_cached_mods()
 
         context.scene.sw_settings.running = False
 
