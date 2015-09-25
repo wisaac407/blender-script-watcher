@@ -37,7 +37,20 @@ import io
 import traceback
 import types
 import bpy
+from bpy.app.handlers import persistent
 
+@persistent
+def load_handler(dummy):
+    try:
+        if (bpy.context.scene.sw_settings.running and bpy.context.scene.sw_settings.auto_watch_on_startup):
+            bpy.ops.wm.sw_watch_end('EXEC_DEFAULT')
+            bpy.ops.wm.sw_watch_start('EXEC_DEFAULT')
+        else:
+            bpy.ops.wm.sw_watch_end('EXEC_DEFAULT')
+    except:
+        print("Exception on startup check!")
+        
+    
 def add_scrollback(ctx, text, text_type):
     for line in text:
         bpy.ops.console.scrollback_append(ctx, text=line.replace('\t', '    '), 
@@ -280,6 +293,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         col = layout.column()
         col.prop(context.scene.sw_settings, 'filepath')
         col.prop(context.scene.sw_settings, 'use_py_console')
+        col.prop(context.scene.sw_settings, 'auto_watch_on_startup')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
         if running:
@@ -304,6 +318,12 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
         description = 'Use blenders built-in python console for program output (e.g. print statments and error messages)',
         default     = False
     )
+    
+    auto_watch_on_startup = bpy.props.BoolProperty(
+        name        = 'Watch on startup',
+        description = 'Watch script automatically on new .blend load',
+        default     = False
+    )
 
 
 def register():
@@ -315,6 +335,8 @@ def register():
     
     bpy.types.Scene.sw_settings = \
         bpy.props.PointerProperty(type=ScriptWatcherSettings)
+    
+    bpy.app.handlers.load_post.append(load_handler)
 
 
 def unregister():
@@ -323,6 +345,8 @@ def unregister():
     bpy.utils.unregister_class(CancelScriptWatcher)
     bpy.utils.unregister_class(ReloadScriptWatcher)
     bpy.utils.unregister_class(ScriptWatcherSettings)
+    bpy.app.handlers.load_post.remove(load_handler)
+
 
     del bpy.types.Scene.sw_settings
 
