@@ -327,11 +327,7 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
 
 
 def register():
-    bpy.utils.register_class(WatchScriptOperator)
-    bpy.utils.register_class(ScriptWatcherPanel)
-    bpy.utils.register_class(CancelScriptWatcher)
-    bpy.utils.register_class(ReloadScriptWatcher)
-    bpy.utils.register_class(ScriptWatcherSettings)
+    bpy.utils.register_module(__name__)
     
     bpy.types.Scene.sw_settings = \
         bpy.props.PointerProperty(type=ScriptWatcherSettings)
@@ -340,11 +336,8 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(WatchScriptOperator)
-    bpy.utils.unregister_class(ScriptWatcherPanel)
-    bpy.utils.unregister_class(CancelScriptWatcher)
-    bpy.utils.unregister_class(ReloadScriptWatcher)
-    bpy.utils.unregister_class(ScriptWatcherSettings)
+    bpy.utils.unregister_module(__name__)
+    
     bpy.app.handlers.load_post.remove(load_handler)
 
 
