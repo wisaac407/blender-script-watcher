@@ -353,7 +353,7 @@ class SWConsoleSettings(bpy.types.PropertyGroup):
     active = bpy.props.BoolProperty(
         name        = "Debug Mode",
         update      = update_debug,
-        description = "Enter Script Watcher debugging mode.",
+        description = "Enter Script Watcher debugging mode (when in debug mode you can access the script variables).",
         default     = False
     )
 
