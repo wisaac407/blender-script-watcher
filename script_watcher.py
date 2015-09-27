@@ -36,6 +36,7 @@ import os, sys
 import io
 import traceback
 import types
+import console_python # Blender module giving us access to the blender python console.
 import bpy
 from bpy.app.handlers import persistent
 
@@ -55,6 +56,14 @@ def add_scrollback(ctx, text, text_type):
     for line in text:
         bpy.ops.console.scrollback_append(ctx, text=line.replace('\t', '    '), 
                                           type=text_type)
+
+def get_console_id(area):
+    """Return the console id of the given region."""
+    if area.type == 'CONSOLE': # Only continue if we have a console area.
+        for region in area.regions:
+            if region.type == 'WINDOW':
+                return hash(region) # The id is the hash of the window region.
+    return False
 
 
 class SplitIO(io.StringIO):
@@ -326,6 +335,41 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
     )
 
 
+def update_debug(self, context):
+    console_id = get_console_id(context.area)
+    #ctx = context.copy() # Operators only take dicts.
+    #bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
+
+
+class SWConsoleSettings(bpy.types.PropertyGroup):
+    active = bpy.props.BoolProperty(
+        name        = "Debug Mode",
+        update      = update_debug,
+        description = "Enter Script Watcher debugging mode.",
+        default     = False
+    )
+
+
+class SWConsoleHeader(bpy.types.Header):
+    bl_space_type = 'CONSOLE'
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        cs = context.screen.sw_consoles
+        
+        console_id = str(get_console_id(context.area))
+        
+        # Make sure this console is in the consoles collection.
+        if console_id not in cs:
+            console = cs.add()
+            console.name = console_id
+
+        row = layout.row()
+        row.scale_x = 1.8
+        row.prop(cs[console_id], 'active', toggle=True)
+
+
 def register():
     bpy.utils.register_module(__name__)
     
@@ -333,6 +377,13 @@ def register():
         bpy.props.PointerProperty(type=ScriptWatcherSettings)
     
     bpy.app.handlers.load_post.append(load_handler)
+    
+    bpy.types.Screen.sw_consoles = bpy.props.CollectionProperty(
+        type   = SWConsoleSettings
+    )
+    
+    for screen in bpy.data.screens:
+        screen.sw_consoles.clear()
 
 
 def unregister():
@@ -342,6 +393,11 @@ def unregister():
 
 
     del bpy.types.Scene.sw_settings
+    
+    del bpy.types.Screen.sw_consoles
+    
+    for screen in bpy.data.screens:
+        screen.sw_consoles.clear()
 
 
 if __name__ == "__main__":
