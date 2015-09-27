@@ -345,6 +345,26 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
 
 def update_debug(self, context):
     console_id = get_console_id(context.area)
+    
+    console, _, _ = console_python.get_console(console_id)
+    
+    if self.active:
+        console.globals = console.locals
+        
+        if context.scene.sw_settings.running:
+            dir, mod = os.path.split(bpy.path.abspath(context.scene.sw_settings.filepath))
+        
+            # XXX This is almost the same as get_mod_name so it should become a global function.
+            if mod == '__init__.py':
+                mod = os.path.basename(dir)
+            else:
+                mod = os.path.splitext(mod)[0]
+        
+            console.locals = sys.modules[mod].__dict__
+        
+    else:
+        console.locals = console.globals
+    
     #ctx = context.copy() # Operators only take dicts.
     #bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
 
