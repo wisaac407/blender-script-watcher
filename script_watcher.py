@@ -41,14 +41,15 @@ from bpy.app.handlers import persistent
 
 @persistent
 def load_handler(dummy):
-    try:
-        if (bpy.context.scene.sw_settings.running and bpy.context.scene.sw_settings.auto_watch_on_startup):
-            bpy.ops.wm.sw_watch_end('EXEC_DEFAULT')
-            bpy.ops.wm.sw_watch_start('EXEC_DEFAULT')
-        else:
-            bpy.ops.wm.sw_watch_end('EXEC_DEFAULT')
-    except:
-        print("Exception on startup check!")
+    running = bpy.context.scene.sw_settings.running
+    
+    # First of all, make sure script watcher is off on all the scenes.
+    for scene in bpy.data.scenes:
+        bpy.ops.wm.sw_watch_end({'scene': scene})
+    
+    # Startup script watcher on the current scene if needed.
+    if running and bpy.context.scene.sw_settings.auto_watch_on_startup:
+        bpy.ops.wm.sw_watch_start()
         
     
 def add_scrollback(ctx, text, text_type):
