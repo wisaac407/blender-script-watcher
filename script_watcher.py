@@ -65,6 +65,8 @@ def get_console_id(area):
                 return hash(region) # The id is the hash of the window region.
     return False
 
+def isnum(s):
+    return s[1:].isnumeric() and s[0] in '-+1234567890'
 
 class SplitIO(io.StringIO):
     """Feed the input stream into another stream."""
@@ -192,7 +194,7 @@ class WatchScriptOperator(bpy.types.Operator):
         output_err = stderr.read().split('\n')
         
         for console in context.screen.sw_consoles:
-            if console.active and console.name.isnumeric(): # Make sure it's not some random string.
+            if console.active and isnum(console.name): # Make sure it's not some random string.
 
                 console, _, _ = console_python.get_console(int(console.name))
 
