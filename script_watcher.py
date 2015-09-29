@@ -52,6 +52,9 @@ def load_handler(dummy):
         print("Exception on startup check!")
         
     
+    for screen in bpy.data.screens:
+        screen.sw_consoles.clear()
+    
 def add_scrollback(ctx, text, text_type):
     for line in text:
         bpy.ops.console.scrollback_append(ctx, text=line.replace('\t', '    '), 
@@ -411,9 +414,6 @@ def register():
     bpy.types.Screen.sw_consoles = bpy.props.CollectionProperty(
         type   = SWConsoleSettings
     )
-    
-    for screen in bpy.data.screens:
-        screen.sw_consoles.clear()
 
 
 def unregister():
@@ -425,9 +425,6 @@ def unregister():
     del bpy.types.Scene.sw_settings
     
     del bpy.types.Screen.sw_consoles
-    
-    for screen in bpy.data.screens:
-        screen.sw_consoles.clear()
 
 
 if __name__ == "__main__":
