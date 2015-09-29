@@ -36,6 +36,7 @@ import os, sys
 import io
 import traceback
 import types
+import console_python # Blender module giving us access to the blender python console.
 import bpy
 from bpy.app.handlers import persistent
 
@@ -52,11 +53,24 @@ def load_handler(dummy):
         bpy.ops.wm.sw_watch_start()
         
     
+    for screen in bpy.data.screens:
+        screen.sw_consoles.clear()
+    
 def add_scrollback(ctx, text, text_type):
     for line in text:
         bpy.ops.console.scrollback_append(ctx, text=line.replace('\t', '    '), 
                                           type=text_type)
 
+def get_console_id(area):
+    """Return the console id of the given region."""
+    if area.type == 'CONSOLE': # Only continue if we have a console area.
+        for region in area.regions:
+            if region.type == 'WINDOW':
+                return hash(region) # The id is the hash of the window region.
+    return False
+
+def isnum(s):
+    return s[1:].isnumeric() and s[0] in '-+1234567890'
 
 class SplitIO(io.StringIO):
     """Feed the input stream into another stream."""
@@ -182,6 +196,14 @@ class WatchScriptOperator(bpy.types.Operator):
         # Don't use readlines because that leaves trailing new lines.
         output = stdout.read().split('\n')
         output_err = stderr.read().split('\n')
+        
+        for console in context.screen.sw_consoles:
+            if console.active and isnum(console.name): # Make sure it's not some random string.
+
+                console, _, _ = console_python.get_console(int(console.name))
+
+                # Set the locals to the modules dict.
+                console.locals = sys.modules[self.get_mod_name()[0]].__dict__
         
         if self.use_py_console:
             # Print the output to the consoles.
@@ -327,6 +349,61 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
     )
 
 
+def update_debug(self, context):
+    console_id = get_console_id(context.area)
+    
+    console, _, _ = console_python.get_console(console_id)
+    
+    if self.active:
+        console.globals = console.locals
+        
+        if context.scene.sw_settings.running:
+            dir, mod = os.path.split(bpy.path.abspath(context.scene.sw_settings.filepath))
+        
+            # XXX This is almost the same as get_mod_name so it should become a global function.
+            if mod == '__init__.py':
+                mod = os.path.basename(dir)
+            else:
+                mod = os.path.splitext(mod)[0]
+        
+            console.locals = sys.modules[mod].__dict__
+        
+    else:
+        console.locals = console.globals
+    
+    #ctx = context.copy() # Operators only take dicts.
+    #bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
+
+
+class SWConsoleSettings(bpy.types.PropertyGroup):
+    active = bpy.props.BoolProperty(
+        name        = "Debug Mode",
+        update      = update_debug,
+        description = "Enter Script Watcher debugging mode (when in debug mode you can access the script variables).",
+        default     = False
+    )
+
+
+class SWConsoleHeader(bpy.types.Header):
+    bl_space_type = 'CONSOLE'
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        cs = context.screen.sw_consoles
+        
+        console_id = str(get_console_id(context.area))
+        
+        # Make sure this console is in the consoles collection.
+        if console_id not in cs:
+            console = cs.add()
+            console.name = console_id
+
+        row = layout.row()
+        row.scale_x = 1.8
+        row.prop(cs[console_id], 'active', toggle=True)
+
+
 def register():
     bpy.utils.register_module(__name__)
     
@@ -334,6 +411,10 @@ def register():
         bpy.props.PointerProperty(type=ScriptWatcherSettings)
     
     bpy.app.handlers.load_post.append(load_handler)
+    
+    bpy.types.Screen.sw_consoles = bpy.props.CollectionProperty(
+        type   = SWConsoleSettings
+    )
 
 
 def unregister():
@@ -343,6 +424,8 @@ def unregister():
 
 
     del bpy.types.Scene.sw_settings
+    
+    del bpy.types.Screen.sw_consoles
 
 
 if __name__ == "__main__":
