@@ -52,7 +52,7 @@ def load_handler(dummy):
     if running and bpy.context.scene.sw_settings.auto_watch_on_startup:
         bpy.ops.wm.sw_watch_start()
         
-    
+    # Reset the consoles list to remove all the consoles that don't exist anymore.
     for screen in bpy.data.screens:
         screen.sw_consoles.clear()
     
