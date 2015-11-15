@@ -36,6 +36,8 @@ import os, sys
 import io
 import traceback
 import types
+import subprocess
+
 import console_python # Blender module giving us access to the blender python console.
 import bpy
 from bpy.app.handlers import persistent
@@ -95,6 +97,23 @@ class SplitIO(io.StringIO):
         
         # When we are written to, we also write to the secondary stream.
         self.stream.write(s)
+
+
+# Addon preferences.
+class ScriptWatcherPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+
+    editor_path = bpy.props.StringProperty(
+        name = 'Editor Path',
+        description = 'Path to external editor.',
+        subtype = 'FILE_PATH'
+    )
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.prop(self, 'editor_path')
+
 
 # Define the script watching operator.
 class WatchScriptOperator(bpy.types.Operator):
@@ -300,6 +319,20 @@ class ReloadScriptWatcher(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OpenExternalEditor(bpy.types.Operator):
+    """Edit script in an external text editor."""
+    bl_idname = "wm.sw_edit_externally"
+    bl_label = "Edit Externally"
+
+    def execute(self, context):
+        addon_prefs = context.user_preferences.addons[__name__].preferences
+
+        filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
+
+        subprocess.Popen((addon_prefs.editor_path, filepath))
+        return {'FINISHED'}
+
+
 # Create the UI for the operator. NEEDS FINISHING!!
 class ScriptWatcherPanel(bpy.types.Panel):
     """UI for the script watcher."""
@@ -323,6 +356,9 @@ class ScriptWatcherPanel(bpy.types.Panel):
             row = layout.row(align=True)
             row.operator('wm.sw_watch_end', icon='CANCEL')
             row.operator('wm.sw_reload', icon='FILE_REFRESH')
+
+        layout.separator()
+        layout.operator('wm.sw_edit_externally', icon='TEXT')
 
 
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
