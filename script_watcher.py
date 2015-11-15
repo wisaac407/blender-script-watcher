@@ -39,9 +39,10 @@ import traceback
 import types
 import subprocess
 
-import console_python # Blender module giving us access to the blender python console.
+import console_python  # Blender module giving us access to the blender python console.
 import bpy
 from bpy.app.handlers import persistent
+
 
 @persistent
 def load_handler(dummy):
@@ -59,21 +60,25 @@ def load_handler(dummy):
     for screen in bpy.data.screens:
         screen.sw_consoles.clear()
 
+
 def add_scrollback(ctx, text, text_type):
     for line in text:
         bpy.ops.console.scrollback_append(ctx, text=line.replace('\t', '    '),
                                           type=text_type)
 
+
 def get_console_id(area):
     """Return the console id of the given region."""
-    if area.type == 'CONSOLE': # Only continue if we have a console area.
+    if area.type == 'CONSOLE':  # Only continue if we have a console area.
         for region in area.regions:
             if region.type == 'WINDOW':
-                return hash(region) # The id is the hash of the window region.
+                return hash(region)  # The id is the hash of the window region.
     return False
+
 
 def isnum(s):
     return s[1:].isnumeric() and s[0] in '-+1234567890'
+
 
 class SplitIO(io.StringIO):
     """Feed the input stream into another stream."""
@@ -105,9 +110,9 @@ class ScriptWatcherPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     editor_path = bpy.props.StringProperty(
-        name = 'Editor Path',
-        description = 'Path to external editor.',
-        subtype = 'FILE_PATH'
+        name='Editor Path',
+        description='Path to external editor.',
+        subtype='FILE_PATH'
     )
 
     def draw(self, context):
@@ -141,7 +146,7 @@ class WatchScriptOperator(bpy.types.Operator):
                 for f in files:
                     filepaths.append(os.path.join(root, f))
             else:
-                dirs[:] = [] # No __init__ so we stop walking this dir.
+                dirs[:] = []  # No __init__ so we stop walking this dir.
 
         # If we just have one (non __init__) file then return just that file.
         return paths, filepaths or [self.filepath]
@@ -188,7 +193,7 @@ class WatchScriptOperator(bpy.types.Operator):
             sys.modules[mod_name] = mod
 
             # Fianally, execute the module.
-            exec(compile(f.read(), self.filepath, 'exec'), mod.__dict__)
+            exec (compile(f.read(), self.filepath, 'exec'), mod.__dict__)
         except IOError:
             print('Could not open script file.')
         except:
@@ -218,7 +223,7 @@ class WatchScriptOperator(bpy.types.Operator):
         output_err = stderr.read().split('\n')
 
         for console in context.screen.sw_consoles:
-            if console.active and isnum(console.name): # Make sure it's not some random string.
+            if console.active and isnum(console.name):  # Make sure it's not some random string.
 
                 console, _, _ = console_python.get_console(int(console.name))
 
@@ -278,7 +283,8 @@ class WatchScriptOperator(bpy.types.Operator):
 
         # Setup the times dict to keep track of when all the files where last edited.
         dirs, files = self.get_paths()
-        self._times = dict((path, os.stat(path).st_mtime) for path in files) # Where we store the times of all the paths.
+        self._times = dict(
+            (path, os.stat(path).st_mtime) for path in files)  # Where we store the times of all the paths.
         self._times[files[0]] = 0  # We set one of the times to 0 so the script will be loaded on startup.
 
         # Setup the event timer.
@@ -353,6 +359,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         col.prop(context.scene.sw_settings, 'auto_watch_on_startup')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
+
         if running:
             row = layout.row(align=True)
             row.operator('wm.sw_watch_end', icon='CANCEL')
@@ -368,21 +375,21 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
     reload = bpy.props.BoolProperty(default=False)
 
     filepath = bpy.props.StringProperty(
-        name        = 'Script',
-        description = 'Script file to watch for changes.',
-        subtype     = 'FILE_PATH'
+        name='Script',
+        description='Script file to watch for changes.',
+        subtype='FILE_PATH'
     )
 
     use_py_console = bpy.props.BoolProperty(
-        name        = 'Use py console',
-        description = 'Use blenders built-in python console for program output (e.g. print statments and error messages)',
-        default     = False
+        name='Use py console',
+        description='Use blenders built-in python console for program output (e.g. print statments and error messages)',
+        default=False
     )
 
     auto_watch_on_startup = bpy.props.BoolProperty(
-        name        = 'Watch on startup',
-        description = 'Watch script automatically on new .blend load',
-        default     = False
+        name='Watch on startup',
+        description='Watch script automatically on new .blend load',
+        default=False
     )
 
 
@@ -408,16 +415,16 @@ def update_debug(self, context):
     else:
         console.locals = console.globals
 
-    #ctx = context.copy() # Operators only take dicts.
-    #bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
+        # ctx = context.copy() # Operators only take dicts.
+        # bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
 
 
 class SWConsoleSettings(bpy.types.PropertyGroup):
     active = bpy.props.BoolProperty(
-        name        = "Debug Mode",
-        update      = update_debug,
-        description = "Enter Script Watcher debugging mode (when in debug mode you can access the script variables).",
-        default     = False
+        name="Debug Mode",
+        update=update_debug,
+        description="Enter Script Watcher debugging mode (when in debug mode you can access the script variables).",
+        default=False
     )
 
 
@@ -450,7 +457,7 @@ def register():
     bpy.app.handlers.load_post.append(load_handler)
 
     bpy.types.Screen.sw_consoles = bpy.props.CollectionProperty(
-        type   = SWConsoleSettings
+        type=SWConsoleSettings
     )
 
 
@@ -458,7 +465,6 @@ def unregister():
     bpy.utils.unregister_module(__name__)
 
     bpy.app.handlers.load_post.remove(load_handler)
-
 
     del bpy.types.Scene.sw_settings
 
