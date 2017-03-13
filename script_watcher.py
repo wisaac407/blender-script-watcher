@@ -340,6 +340,33 @@ class OpenExternalEditor(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class SWAddBreakpoint(bpy.types.Operator):
+    """Add a breakpoint"""
+    bl_idname = "wm.sw_breakpoint_add"
+    bl_label = "Add Breakpoint"
+
+    def execute(self, context):
+        sw = context.scene.sw_settings
+        bp = sw.breakpoints.add()
+        sw.breakpoint_active_index = sw.breakpoints.values().index(bp)
+
+        return {'FINISHED'}
+
+
+class SWRemoveBreakpoint(bpy.types.Operator):
+    """Remove a breakpoint"""
+    bl_idname = "wm.sw_breakpoint_remove"
+    bl_label = "Remove Breakpoint"
+
+    def execute(self, context):
+        sw = context.scene.sw_settings
+        sw.breakpoints.remove(sw.breakpoint_active_index)
+
+        sw.breakpoint_active_index = max(sw.breakpoint_active_index - 1, 0)
+
+        return {'FINISHED'}
+
+
 # Create the UI for the operator. NEEDS FINISHING!!
 class ScriptWatcherPanel(bpy.types.Panel):
     """UI for the script watcher."""
@@ -368,6 +395,41 @@ class ScriptWatcherPanel(bpy.types.Panel):
         layout.separator()
         layout.operator('wm.sw_edit_externally', icon='TEXT')
 
+        layout.label("Breakpoints:")
+        row = layout.row()
+        col = row.column()
+        col.template_list("SW_UL_breakpoints", "breakpoints", context.scene.sw_settings,
+                             "breakpoints", context.scene.sw_settings, "breakpoint_active_index", rows=1)
+        col = row.column(align=True)
+        col.operator("wm.sw_breakpoint_add", icon='ZOOMIN', text="")
+        col.operator("wm.sw_breakpoint_remove", icon='ZOOMOUT', text="")
+
+
+class SW_UL_breakpoints(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index, flt_flag):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row()
+            row.prop(item, "lineno", emboss=False)
+            row.prop(item, "active")
+        # 'GRID' layout type should be as compact as possible (typically a single icon!).
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
+class SWBreakpoint(bpy.types.PropertyGroup):
+    lineno = bpy.props.IntProperty(
+        name="Line Number",
+        min=1,
+        default=1
+    )
+
+    active = bpy.props.BoolProperty(
+        name="Active",
+        description="Activate breakpoint",
+        default=True
+    )
+
 
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
@@ -391,6 +453,14 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
         description='Watch script automatically on new .blend load',
         default=False
     )
+
+    breakpoints = bpy.props.CollectionProperty(
+        name="Breakpoints",
+        description="Debugging breakpoints",
+        type=SWBreakpoint
+    )
+
+    breakpoint_active_index = bpy.props.IntProperty()
 
 
 def update_debug(self, context):
