@@ -8,7 +8,7 @@ changes, whenever you make a change to the watched script, it will be re-run. Th
 
 ## Installation:
 Download the file `script_watcher.py` then open blender, go to user settings(`Ctrl-Alt-U`) and select `Install from file`.
-Find the file previously downloaded and click `install`.
+Find the file previously downloaded file and click `install`.
 
 ## Additional Notes:
 This script is considered to be a bata version. If you find any bugs please fill out a [bug report][2]
