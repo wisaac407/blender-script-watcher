@@ -210,6 +210,7 @@ class WatchScriptOperator(bpy.types.Operator):
     _timer = None
     _running = False
     _times = None
+    use_py_console = None
     loader = None
 
     def reload_script(self, context):
