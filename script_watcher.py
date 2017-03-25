@@ -288,7 +288,7 @@ class WatchScriptOperator(bpy.types.Operator):
 
         filepath = bpy.path.abspath(context.scene.sw_settings.filepath)
 
-        # If it's not a file, doesn't exist or permistion is denied we don't preceed.
+        # If it's not a file, doesn't exist or permission is denied we don't proceed.
         if not os.path.isfile(filepath):
             self.report({'ERROR'}, 'Unable to open script.')
             return {'CANCELLED'}
