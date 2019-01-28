@@ -23,7 +23,7 @@ bl_info = {
     "name": "Script Watcher",
     "author": "Isaac Weaver",
     "version": (0, 6),
-    "blender": (2, 75, 0),
+    "blender": (2, 80, 0),
     "location": "Properties > Scene > Script Watcher",
     "description": "Reloads an external script on edits.",
     "warning": "Still in beta stage.",
@@ -181,15 +181,17 @@ class ScriptWatcherLoader:
         """Remove all the script modules from the system cache."""
         paths = self.get_paths()
         for mod_name, mod in list(sys.modules.items()):
-            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
-                del sys.modules[mod_name]
-
+            try:
+                if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
+                    del sys.modules[mod_name]
+            except TypeError as e:
+                pass
 
 # Addon preferences.
 class ScriptWatcherPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
-    editor_path = bpy.props.StringProperty(
+    editor_path : bpy.props.StringProperty(
         name='Editor Path',
         description='Path to external editor.',
         subtype='FILE_PATH'
@@ -304,7 +306,7 @@ class WatchScriptOperator(bpy.types.Operator):
 
         # Setup the event timer.
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.1, context.window)
+        self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
 
         context.scene.sw_settings.running = True
@@ -387,22 +389,22 @@ class ScriptWatcherPanel(bpy.types.Panel):
 
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
-    running = bpy.props.BoolProperty(default=False)
-    reload = bpy.props.BoolProperty(default=False)
+    running : bpy.props.BoolProperty(default=False)
+    reload : bpy.props.BoolProperty(default=False)
 
-    filepath = bpy.props.StringProperty(
+    filepath : bpy.props.StringProperty(
         name='Script',
         description='Script file to watch for changes.',
         subtype='FILE_PATH'
     )
 
-    use_py_console = bpy.props.BoolProperty(
+    use_py_console : bpy.props.BoolProperty(
         name='Use py console',
         description='Use blenders built-in python console for program output (e.g. print statments and error messages)',
         default=False
     )
 
-    auto_watch_on_startup = bpy.props.BoolProperty(
+    auto_watch_on_startup : bpy.props.BoolProperty(
         name='Watch on startup',
         description='Watch script automatically on new .blend load',
         default=False
@@ -436,7 +438,7 @@ def update_debug(self, context):
 
 
 class SWConsoleSettings(bpy.types.PropertyGroup):
-    active = bpy.props.BoolProperty(
+    active : bpy.props.BoolProperty(
         name="Debug Mode",
         update=update_debug,
         description="Enter Script Watcher debugging mode (when in debug mode you can access the script variables).",
@@ -463,9 +465,24 @@ class SWConsoleHeader(bpy.types.Header):
         row.scale_x = 1.8
         row.prop(cs[console_id], 'active', toggle=True)
 
+classes = (
+    ScriptWatcherPreferences,
+
+    WatchScriptOperator,
+    CancelScriptWatcher,
+    ReloadScriptWatcher,
+    OpenExternalEditor,
+
+    ScriptWatcherPanel,
+    ScriptWatcherSettings,
+    SWConsoleSettings,
+    SWConsoleHeader,
+)
 
 def register():
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
 
     bpy.types.Scene.sw_settings = \
         bpy.props.PointerProperty(type=ScriptWatcherSettings)
@@ -478,7 +495,9 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
+    from bpy.utils import unregister_class
+    for cls in reversed(classes):
+        unregister_class(cls)
 
     bpy.app.handlers.load_post.remove(load_handler)
 
