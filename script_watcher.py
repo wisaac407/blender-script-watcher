@@ -204,7 +204,7 @@ class ScriptWatcherLoader:
 class ScriptWatcherPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
-    editor_path : bpy.props.StringProperty(
+    editor_path = bpy.props.StringProperty(
         name='Editor Path',
         description='Path to external editor.',
         subtype='FILE_PATH'
@@ -403,22 +403,22 @@ class ScriptWatcherPanel(bpy.types.Panel):
 @make_annotations
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
-    running : bpy.props.BoolProperty(default=False)
-    reload : bpy.props.BoolProperty(default=False)
+    running = bpy.props.BoolProperty(default=False)
+    reload = bpy.props.BoolProperty(default=False)
 
-    filepath : bpy.props.StringProperty(
+    filepath = bpy.props.StringProperty(
         name='Script',
         description='Script file to watch for changes.',
         subtype='FILE_PATH'
     )
 
-    use_py_console : bpy.props.BoolProperty(
+    use_py_console = bpy.props.BoolProperty(
         name='Use py console',
         description='Use blenders built-in python console for program output (e.g. print statments and error messages)',
         default=False
     )
 
-    auto_watch_on_startup : bpy.props.BoolProperty(
+    auto_watch_on_startup = bpy.props.BoolProperty(
         name='Watch on startup',
         description='Watch script automatically on new .blend load',
         default=False
@@ -453,7 +453,7 @@ def update_debug(self, context):
 
 @make_annotations
 class SWConsoleSettings(bpy.types.PropertyGroup):
-    active : bpy.props.BoolProperty(
+    active = bpy.props.BoolProperty(
         name="Debug Mode",
         update=update_debug,
         description="Enter Script Watcher debugging mode (when in debug mode you can access the script variables).",
