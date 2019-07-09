@@ -196,11 +196,8 @@ class ScriptWatcherLoader:
         """Remove all the script modules from the system cache."""
         paths = self.get_paths()
         for mod_name, mod in list(sys.modules.items()):
-            try:
-                if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
-                    del sys.modules[mod_name]
-            except TypeError as e:
-                pass
+            if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
+                del sys.modules[mod_name]
 
 # Addon preferences.
 @make_annotations
