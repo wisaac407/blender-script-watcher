@@ -462,6 +462,7 @@ class SWConsoleSettings(bpy.types.PropertyGroup):
 
 
 class SWConsoleHeader(bpy.types.Header):
+    bl_idname = "CONSOLE_HT_script_watcher"
     bl_space_type = 'CONSOLE'
 
     def draw(self, context):
