@@ -23,7 +23,7 @@ bl_info = {
     "name": "Script Watcher",
     "author": "Isaac Weaver",
     "version": (0, 7),
-    "blender": (2, 79, 0),
+    "blender": (2, 80, 0),
     "location": "Properties > Scene > Script Watcher",
     "description": "Reloads an external script on edits.",
     "warning": "Still in beta stage.",
@@ -78,6 +78,21 @@ def get_console_id(area):
 
 def isnum(s):
     return s[1:].isnumeric() and s[0] in '-+1234567890'
+
+
+def make_annotations(cls):
+    """Converts class fields to annotations if running with Blender 2.8"""
+    if bpy.app.version < (2, 80):
+        return cls
+    bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple)}
+    if bl_props:
+        if '__annotations__' not in cls.__dict__:
+            setattr(cls, '__annotations__', {})
+        annotations = cls.__dict__['__annotations__']
+        for k, v in bl_props.items():
+            annotations[k] = v
+            delattr(cls, k)
+    return cls
 
 
 class SplitIO(io.StringIO):
@@ -190,8 +205,8 @@ class ScriptWatcherLoader:
             if hasattr(mod, '__file__') and os.path.dirname(mod.__file__) in paths:
                 del sys.modules[mod_name]
 
-
 # Addon preferences.
+@make_annotations
 class ScriptWatcherPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
@@ -310,7 +325,7 @@ class WatchScriptOperator(bpy.types.Operator):
 
         # Setup the event timer.
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.1, context.window)
+        self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
 
         context.scene.sw_settings.running = True
@@ -392,6 +407,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         layout.operator('wm.sw_edit_externally', icon='TEXT')
 
 
+@make_annotations
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
     running = bpy.props.BoolProperty(default=False)
@@ -448,6 +464,7 @@ def update_debug(self, context):
         # bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
 
 
+@make_annotations
 class SWConsoleSettings(bpy.types.PropertyGroup):
     active = bpy.props.BoolProperty(
         name="Debug Mode",
@@ -458,6 +475,7 @@ class SWConsoleSettings(bpy.types.PropertyGroup):
 
 
 class SWConsoleHeader(bpy.types.Header):
+    bl_idname = "CONSOLE_HT_script_watcher"
     bl_space_type = 'CONSOLE'
 
     def draw(self, context):
@@ -476,9 +494,24 @@ class SWConsoleHeader(bpy.types.Header):
         row.scale_x = 1.8
         row.prop(cs[console_id], 'active', toggle=True)
 
+classes = (
+    ScriptWatcherPreferences,
+
+    WatchScriptOperator,
+    CancelScriptWatcher,
+    ReloadScriptWatcher,
+    OpenExternalEditor,
+
+    ScriptWatcherPanel,
+    ScriptWatcherSettings,
+    SWConsoleSettings,
+    SWConsoleHeader,
+)
 
 def register():
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
 
     bpy.types.Scene.sw_settings = \
         bpy.props.PointerProperty(type=ScriptWatcherSettings)
@@ -491,7 +524,9 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
+    from bpy.utils import unregister_class
+    for cls in reversed(classes):
+        unregister_class(cls)
 
     bpy.app.handlers.load_post.remove(load_handler)
 
