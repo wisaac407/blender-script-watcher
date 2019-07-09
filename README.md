@@ -10,6 +10,13 @@ changes, whenever you make a change to the watched script, it will be re-run. Th
 Download the file `script_watcher.py` then open blender, go to user settings(`Ctrl-Alt-U`) and select `Install from file`.
 Find the file previously downloaded file and click `install`.
 
+## Usage
+Navigate to Properties » Scene » Script Watcher And input the path to the script you want to watch and press `Watch Script`.
+To stop watching a script, press `Stop Watching`. If you want to force reload the script press `Reload`.
+
+![alt text](https://github.com/wisaac407/blender-script-watcher/raw/master/images/SW-Panel.png "Script Watcher Panel")
+
+
 ## Additional Notes:
 This script is considered to be a bata version. If you find any bugs please fill out a [bug report][2]
 
