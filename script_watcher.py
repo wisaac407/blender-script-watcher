@@ -80,6 +80,21 @@ def isnum(s):
     return s[1:].isnumeric() and s[0] in '-+1234567890'
 
 
+def make_annotations(cls):
+    """Converts class fields to annotations if running with Blender 2.8"""
+    if bpy.app.version < (2, 80):
+        return cls
+    bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple)}
+    if bl_props:
+        if '__annotations__' not in cls.__dict__:
+            setattr(cls, '__annotations__', {})
+        annotations = cls.__dict__['__annotations__']
+        for k, v in bl_props.items():
+            annotations[k] = v
+            delattr(cls, k)
+    return cls
+
+
 class SplitIO(io.StringIO):
     """Feed the input stream into another stream."""
     PREFIX = '[Script Watcher]: '
@@ -188,6 +203,7 @@ class ScriptWatcherLoader:
                 pass
 
 # Addon preferences.
+@make_annotations
 class ScriptWatcherPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
@@ -387,6 +403,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         layout.operator('wm.sw_edit_externally', icon='TEXT')
 
 
+@make_annotations
 class ScriptWatcherSettings(bpy.types.PropertyGroup):
     """All the script watcher settings."""
     running : bpy.props.BoolProperty(default=False)
@@ -437,6 +454,7 @@ def update_debug(self, context):
         # bpy.ops.console.update_console(ctx, debug_mode=self.active, script='test-script.py')
 
 
+@make_annotations
 class SWConsoleSettings(bpy.types.PropertyGroup):
     active : bpy.props.BoolProperty(
         name="Debug Mode",
