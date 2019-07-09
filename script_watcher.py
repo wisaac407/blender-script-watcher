@@ -22,7 +22,7 @@ Author: Isaac Weaver <wisaac407@gmail.com>
 bl_info = {
     "name": "Script Watcher",
     "author": "Isaac Weaver",
-    "version": (0, 6),
+    "version": (0, 7),
     "blender": (2, 80, 0),
     "location": "Properties > Scene > Script Watcher",
     "description": "Reloads an external script on edits.",
@@ -124,10 +124,12 @@ class ScriptWatcherLoader:
     """Load the script"""
     filepath = None
     mod_name = None
+    run_main = None
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, run_main=False):
         self.filepath = filepath
         self.mod_name = self.get_mod_name()
+        self.run_main = run_main
 
     def load_module(self):
         """Load the module"""
@@ -136,7 +138,7 @@ class ScriptWatcherLoader:
             paths, files = self.get_paths()
 
             # Create the module and setup the basic properties.
-            mod = types.ModuleType('__main__')
+            mod = types.ModuleType(self.mod_name if self.run_main else '__main__')
             mod.__file__ = self.filepath
             mod.__path__ = paths
             mod.__package__ = self.mod_name
@@ -147,6 +149,10 @@ class ScriptWatcherLoader:
 
             # Finally, execute the module.
             exec(compile(f.read(), self.filepath, 'exec'), mod.__dict__)
+
+            if self.run_main and 'main' in mod.__dict__:
+                mod.main()
+
         except IOError:
             print('Could not open script file.')
         except:
@@ -255,7 +261,7 @@ class WatchScriptOperator(bpy.types.Operator):
                 console, _, _ = console_python.get_console(int(console.name))
 
                 # Set the locals to the modules dict.
-                console.locals = sys.modules[self.get_mod_name()[0]].__dict__
+                console.locals = sys.modules[self.loader.mod_name].__dict__
 
         if self.use_py_console:
             # Print the output to the consoles.
@@ -309,7 +315,7 @@ class WatchScriptOperator(bpy.types.Operator):
             self.report({'ERROR'}, 'Unable to open script.')
             return {'CANCELLED'}
 
-        self.loader = ScriptWatcherLoader(filepath)
+        self.loader = ScriptWatcherLoader(filepath, context.scene.sw_settings.run_main)
 
         # Setup the times dict to keep track of when all the files where last edited.
         dirs, files = self.loader.get_paths()
@@ -388,6 +394,7 @@ class ScriptWatcherPanel(bpy.types.Panel):
         col.prop(context.scene.sw_settings, 'filepath')
         col.prop(context.scene.sw_settings, 'use_py_console')
         col.prop(context.scene.sw_settings, 'auto_watch_on_startup')
+        col.prop(context.scene.sw_settings, 'run_main')
         col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
         col.enabled = not running
 
@@ -414,7 +421,7 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
 
     use_py_console = bpy.props.BoolProperty(
         name='Use py console',
-        description='Use blenders built-in python console for program output (e.g. print statments and error messages)',
+        description='Use blenders built-in python console for program output (e.g. print statements and error messages)',
         default=False
     )
 
@@ -422,6 +429,12 @@ class ScriptWatcherSettings(bpy.types.PropertyGroup):
         name='Watch on startup',
         description='Watch script automatically on new .blend load',
         default=False
+    )
+
+    run_main = bpy.props.BoolProperty(
+        name='Run Main',
+        description='Instead of running the module with the name __main__ execute the module and call main()',
+        default=False,
     )
 
 
