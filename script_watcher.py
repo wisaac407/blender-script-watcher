@@ -395,7 +395,12 @@ class ScriptWatcherPanel(bpy.types.Panel):
         col.prop(context.scene.sw_settings, 'use_py_console')
         col.prop(context.scene.sw_settings, 'auto_watch_on_startup')
         col.prop(context.scene.sw_settings, 'run_main')
-        col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
+
+        if bpy.app.version < (2, 80, 0):
+            col.operator('wm.sw_watch_start', icon='VISIBLE_IPO_ON')
+        else:
+            col.operator('wm.sw_watch_start', icon='HIDE_OFF')
+
         col.enabled = not running
 
         if running:
