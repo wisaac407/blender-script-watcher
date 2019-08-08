@@ -39,7 +39,7 @@ import traceback
 import types
 import subprocess
 import pdb
-import contextlib
+from threading import Thread, Event
 
 import console_python  # Blender module giving us access to the blender python console.
 import bpy
@@ -122,110 +122,27 @@ class SplitIO(io.StringIO):
         self.stream.write(s)
 
 
-class SWDebuggerPaused(Exception):
-    """SW Debugger Pause Event"""
-
-
-# class SWDebugger(pdb.Pdb):
-#     cur_frame = None
-#
-#     def __init__(self, *a):
-#         class stdin:
-#             def readline(self):
-#                 raise SWDebuggerPaused
-#         super(SWDebugger, self).__init__(*a)
-#
-#     def get_code(self, frame: types.FrameType):
-#         c = frame.f_code
-#         return c
-#         return types.CodeType(c.co_argcount, c.co_kwonlyargcount, c.co_nlocals,
-#                               c.co_stacksize, c.co_flags, c.co_code[frame.f_lasti:], c.co_consts,
-#                               c.co_names, c.co_varnames, c.co_filename, c.co_name,
-#                               c.co_firstlineno, c.co_lnotab, c.co_freevars, c.co_cellvars)
-#
-#     def start(self, code, locals):
-#         try:
-#             sys.settrace(self.trace_dispatch)
-#             exec(code, locals, locals)
-#         except SWDebuggerPaused:
-#             print("Paused")
-#
-#     def pause(self, frame=None):
-#         sys.settrace(None)
-#         if frame is not None:
-#             self.cur_frame = frame
-#         raise SWDebuggerPaused
-#
-#     def resume(self):
-#         import pydevd
-#         pydevd.settrace()
-#         code = self.get_code(self.cur_frame)
-#         exec(code, self.cur_frame.f_globals, self.cur_frame.f_locals)
-#         # try:
-#         #     sys.settrace(self.trace_dispatch)
-#         #     code = self.get_code(self.cur_frame)
-#         #     exec(code, self.cur_frame.f_globals, self.cur_frame.f_locals)
-#         # except SWDebuggerPaused:
-#         #     print("Paused")
-#
-#     def input_line(self, line):
-#         line = line.strip()
-#         if line == 'continue':
-#             self.resume()
-#         elif line == 'locals':
-#             locs = {}
-#             for key, val in self.cur_frame.f_locals.items():
-#                 if key not in self.cur_frame.f_globals:
-#                     locs[key] = val
-#             return locs
-#         elif line == 'globals':
-#             return self.cur_frame.f_globals
-#         elif line == 'dis':
-#             import dis, contextlib
-#             ret = io.StringIO()
-#             with contextlib.redirect_stdout(ret):
-#                 dis.dis(self.cur_frame.f_code)
-#             ret.seek(0)
-#             return ret.read()
-#         elif line == 'lineno':
-#             return self.cur_frame.f_lineno
-#         elif line == 'lasti':
-#             return self.cur_frame.f_lasti
-#         elif line == 'exit':
-#             self.quitting = True
-#         else:
-#             return "Invalid Command: " + line
-#
-#     def dispatch_line(self, frame: types.FrameType):
-#         if frame.f_code.co_filename == "/home/isaac/blender-addons/script-watcher/test.py":
-#             self.pause(frame)
-#         else:
-#             return self.trace_dispatch
-#
-#     def dispatch_return(self, frame, arg):
-#         #self.pause(frame)
-#         return self.trace_dispatch
-#
-#     def dispatch_exception(self, frame, arg):
-#         #self.pause(frame)
-#         return self.trace_dispatch
-#
-#     def dispatch_call(self, frame, arg):
-#         return self.trace_dispatch
-#
-
 class Input:
     _buffer = None
+
+    def __init__(self):
+        self._read_hooks = []
+
+    def add_read_hook(self, hook):
+        self._read_hooks.append(hook)
 
     def write(self, line):
         self._buffer = line
 
     def readline(self):
+        for hook in self._read_hooks:
+            hook(self._buffer)
+
         if self._buffer:
             ret = self._buffer
-            # self._buffer = None
+            self._buffer = None
             return ret
-        raise SWDebuggerPaused
+        return ''
 
 
 class Output:
@@ -244,14 +161,54 @@ class Output:
     def flush(self):
         pass
 
+
+class SWDebuggerThread(Thread):
+    def __init__(self, slave, master, debugger: pdb.Pdb):
+        super(SWDebuggerThread, self).__init__()
+        self.slave = slave
+        self.master = master
+        self.debugger = debugger
+
+        def read_hook(buffer):
+            print(buffer)
+            if buffer is None:
+                self.send_to_master()
+
+        if isinstance(self.debugger.stdin, Input):
+            self.debugger.stdin.add_read_hook(read_hook)
+
+    code = None
+    locals = None
+
+    def set_code(self, code, locals):
+        self.code = code
+        self.locals = locals
+
+    def run(self):
+        print(dir(self.code))
+        self.debugger.set_break(self.code.co_filename, 0)
+        self.debugger.run(self.code, self.locals)
+
+        # When done, kick back to the main thread
+        self.master.set()
+
+    def send_to_master(self):
+        self.master.set()
+        self.slave.clear()
+        self.slave.wait()
+        self.master.clear()
+
+
 class SWDebugger:
     def __init__(self):
         self._cur_frame = None
         self._stdin = Input()
         self._stdout = Output()
         self._old_input = input
-
+        self._slave = Event()
+        self._master = Event()
         self._debugger = pdb.Pdb(stdin=self._stdin, stdout=self._stdout)
+        self._thread = SWDebuggerThread(self._slave, self._master, self._debugger)
 
     @staticmethod
     def _new_input(arg):
@@ -263,121 +220,115 @@ class SWDebugger:
 
     def start(self, code, mod_dict):
         """Start the debugger"""
-
-        try:
-            pdb.__dict__['input'] = self._new_input
-            self._debugger.run(code, mod_dict)
-        except SWDebuggerPaused as e:
-            pdb.__dict__['input'] = self._old_input
-            tb = e.__traceback__
-            while tb.tb_next is not None:
-                tb = tb.tb_next
-            self._cur_frame = tb.tb_frame
+        self._thread.set_code(code, mod_dict)
+        self._thread.start()
 
     def input_line(self, line):
         """Receive user input"""
         self._stdin.write(line)
 
-        try:
-            pdb.__dict__['input'] = self._new_input
-            self._debugger.set_trace(self._cur_frame)
-            # exec(self._cur_frame.f_code, self._cur_frame.f_globals, self._cur_frame.f_locals)
-        except SWDebuggerPaused as e:
-            pdb.__dict__['input'] = self._old_input
-            tb = e.__traceback__
-            while tb.tb_next is not None:
-                tb = tb.tb_next
+        self.send_to_slave()
 
-            self._cur_frame = tb.tb_frame
         return self._stdout.read()
 
+    def send_to_slave(self):
+        self._slave.set()
+        self._master.clear()
+        self._master.wait()
+        self._slave.clear()
 
 
 def create_fake_module():
     """Registers a fake module for handling """
     mod_name = 'console_pdb'
-    if mod_name not in sys.modules:
-        language_id = "pdb"
+    if mod_name in sys.modules:
+        return
 
-        def add_scrollback(text, text_type):
-            for l in text.split("\n"):
-                bpy.ops.console.scrollback_append(text=l.replace("\t", "    "),
-                                                  type=text_type)
+    language_id = "pdb"
 
-        def get_debugger(debugger_id, mod=None, code=None):
-            # # This part was taken from get_console from console_python
-            # debuggers = getattr(get_debugger, "debuggers", None)
-            # hash_next = hash(bpy.context.window_manager)
-            #
-            # if debuggers is None:
-            #     debuggers = get_debugger.debuggers = {}
-            #     get_debugger.consoles_namespace_hash = hash_next
-            # else:
-            #     # check if clearing the namespace is needed to avoid a memory leak.
-            #     # the window manager is normally loaded with new blend files
-            #     # so this is a reasonable way to deal with namespace clearing.
-            #     # bpy.data hashing is reset by undo so cant be used.
-            #     hash_prev = getattr(get_debugger, "debuggers_namespace_hash", 0)
-            #
-            #     if hash_prev != hash_next:
-            #         get_debugger.consoles_namespace_hash = hash_next
-            #         debuggers.clear()
-            #
-            # debugger = debuggers.get(debugger_id)
-            debuggers = getattr(get_debugger, "debuggers", None)
-            if debuggers is None:
-                get_debugger.debuggers = debuggers = {}
-            if debugger_id not in debuggers:
-                #loader = ScriptWatcherLoader(bpy.context.scene.sw_settings.filepath)
-                debuggers[debugger_id] = SWDebugger()
-            debugger = debuggers[debugger_id]
+    def add_scrollback(text, text_type):
+        for l in text.split("\n"):
+            bpy.ops.console.scrollback_append(text=l.replace("\t", "    "),
+                                              type=text_type)
 
-            #if debugger is None:
-                #debugger = SWDebugger()
-            return debugger
+    def get_debugger(debugger_id, mod=None, code=None):
+        # # This part was taken from get_console from console_python
+        # debuggers = getattr(get_debugger, "debuggers", None)
+        # hash_next = hash(bpy.context.window_manager)
+        #
+        # if debuggers is None:
+        #     debuggers = get_debugger.debuggers = {}
+        #     get_debugger.consoles_namespace_hash = hash_next
+        # else:
+        #     # check if clearing the namespace is needed to avoid a memory leak.
+        #     # the window manager is normally loaded with new blend files
+        #     # so this is a reasonable way to deal with namespace clearing.
+        #     # bpy.data hashing is reset by undo so cant be used.
+        #     hash_prev = getattr(get_debugger, "debuggers_namespace_hash", 0)
+        #
+        #     if hash_prev != hash_next:
+        #         get_debugger.consoles_namespace_hash = hash_next
+        #         debuggers.clear()
+        #
+        # debugger = debuggers.get(debugger_id)
+        debuggers = getattr(get_debugger, "debuggers", None)
+        if debuggers is None:
+            get_debugger.debuggers = debuggers = {}
+        if debugger_id not in debuggers:
+            #loader = ScriptWatcherLoader(bpy.context.scene.sw_settings.filepath)
+            debuggers[debugger_id] = SWDebugger()
+        debugger = debuggers[debugger_id]
 
-        def execute(context, is_interactive):
-            sc = context.space_data
+        #if debugger is None:
+            #debugger = SWDebugger()
+        return debugger
 
-            try:
-                line = sc.history[-1].body
-            except:
-                return {'CANCELLED'}
+    def execute(context, is_interactive):
+        sc = context.space_data
 
-            debugger = get_debugger(hash(context.region))
-
-            bpy.ops.console.scrollback_append(text=sc.prompt + line, type='INPUT')
-
-            output = debugger.input_line(line)
-            if not isinstance(output, str):
-                output = repr(output)
-            add_scrollback(output, "OUTPUT")
-
-            # insert a new blank line
-            bpy.ops.console.history_append(text="", current_character=0,
-                                           remove_duplicates=True)
-
-            sc.prompt = debugger.get_prompt()
-            return {'FINISHED'}
-
-        def autocomplete(context):
-            # ~ sc = context.space_data
-            # TODO
+        try:
+            line = sc.history[-1].body
+        except:
             return {'CANCELLED'}
 
-        def banner(context):
-            sc = context.space_data
+        debugger = get_debugger(hash(context.region))
 
-            return {'FINISHED'}
+        bpy.ops.console.scrollback_append(text=sc.prompt + line, type='INPUT')
 
-        mod = types.ModuleType(mod_name)
-        mod.execute = execute
-        mod.banner = banner
-        mod.autocomplete = autocomplete
-        mod.get_debugger = get_debugger
+        output = debugger.input_line(line)
+        if not isinstance(output, str):
+            output = repr(output)
+        add_scrollback(output, "OUTPUT")
 
-        sys.modules[mod_name] = mod
+        # insert a new blank line
+        bpy.ops.console.history_append(text="", current_character=0,
+                                       remove_duplicates=True)
+
+        sc.prompt = debugger.get_prompt()
+        return {'FINISHED'}
+
+    def autocomplete(context):
+        # ~ sc = context.space_data
+        # TODO
+        return {'CANCELLED'}
+
+    def banner(context):
+        sc = context.space_data
+
+        return {'FINISHED'}
+
+    mod = types.ModuleType(mod_name)
+    mod.language_id = language_id
+    mod.execute = execute
+    mod.banner = banner
+    mod.autocomplete = autocomplete
+    mod.get_debugger = get_debugger
+
+    sys.modules[mod_name] = mod
+
+
 create_fake_module()
+
 
 class ScriptWatcherLoader:
     """Load the script"""
@@ -522,7 +473,13 @@ class WatchScriptOperator(bpy.types.Operator):
                     for space in area.spaces:
                         if space.type == 'CONSOLE':
                             break
+                    else:
+                        raise Exception("No console space available")
+
                     debugger_id = get_console_id(area)
+                    break
+            else:
+                raise Exception("No console available")
 
             # Ensure that the module is loaded
             create_fake_module()
